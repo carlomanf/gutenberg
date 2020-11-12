@@ -78,13 +78,13 @@ export default function createNamespace( key, options, registry ) {
 	);
 
 	// Inject registry into selectors
-	// It is important that this injection happens first because __ustableGetSelect
+	// It is important that this injection happens first because __unstableGetSelect
 	// is injected using a mutation of the original selector function.
 	const selectorsWithRegistry = mapValues(
 		options.selectors,
 		( selector ) => {
 			if ( selector.isRegistrySelector ) {
-				selector.__ustableGetSelect = registry.select;
+				selector.__unstableGetSelect = registry.select;
 			}
 			return selector;
 		}
