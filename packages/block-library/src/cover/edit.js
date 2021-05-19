@@ -41,7 +41,7 @@ import {
 	store as blockEditorStore,
 } from '@wordpress/block-editor';
 import { __ } from '@wordpress/i18n';
-import { withDispatch } from '@wordpress/data';
+import { withDispatch, useSelect } from '@wordpress/data';
 import { cover as icon } from '@wordpress/icons';
 import { isBlobURL } from '@wordpress/blob';
 
@@ -49,6 +49,7 @@ import { isBlobURL } from '@wordpress/blob';
  * Internal dependencies
  */
 import {
+	ALLOWED_MEDIA_TYPES,
 	attributesFromMedia,
 	IMAGE_BACKGROUND_TYPE,
 	VIDEO_BACKGROUND_TYPE,
@@ -63,7 +64,7 @@ import {
 /**
  * Module Constants
  */
-const ALLOWED_MEDIA_TYPES = [ 'image', 'video' ];
+
 const INNER_BLOCKS_TEMPLATE = [
 	[
 		'core/paragraph',
@@ -240,8 +241,19 @@ function mediaPosition( { x, y } ) {
 	return `${ Math.round( x * 100 ) }% ${ Math.round( y * 100 ) }%`;
 }
 
+/**
+ * Is the URL a temporary blob URL? A blob URL is one that is used temporarily while
+ * the media (image or video) is being uploaded and will not have an id allocated yet.
+ *
+ * @param {number} id  The id of the media.
+ * @param {string} url The url of the media.
+ *
+ * @return {boolean} Is the URL a Blob URL.
+ */
+const isTemporaryMedia = ( id, url ) => ! id && isBlobURL( url );
+
 function CoverPlaceholder( {
-	hasBackground = false,
+	disableMediaButtons = false,
 	children,
 	noticeUI,
 	noticeOperations,
@@ -261,7 +273,7 @@ function CoverPlaceholder( {
 			accept="image/*,video/*"
 			allowedTypes={ ALLOWED_MEDIA_TYPES }
 			notices={ noticeUI }
-			disableMediaButtons={ hasBackground }
+			disableMediaButtons={ disableMediaButtons }
 			onError={ ( message ) => {
 				removeAllNotices();
 				createErrorNotice( message );
@@ -274,6 +286,7 @@ function CoverPlaceholder( {
 
 function CoverEdit( {
 	attributes,
+	clientId,
 	isSelected,
 	noticeUI,
 	noticeOperations,
@@ -301,7 +314,7 @@ function CoverEdit( {
 		setGradient,
 	} = __experimentalUseGradient();
 	const onSelectMedia = attributesFromMedia( setAttributes );
-	const isBlogUrl = isBlobURL( url );
+	const isUploadingMedia = isTemporaryMedia( id, url );
 
 	const [ prevMinHeightValue, setPrevMinHeightValue ] = useState( minHeight );
 	const [ prevMinHeightUnit, setPrevMinHeightUnit ] = useState(
@@ -397,6 +410,13 @@ function CoverEdit( {
 		styleOfRef[ property ] = mediaPosition( value );
 	};
 
+	const hasInnerBlocks = useSelect(
+		( select ) =>
+			select( blockEditorStore ).getBlock( clientId ).innerBlocks.length >
+			0,
+		[ clientId ]
+	);
+
 	const controls = (
 		<>
 			<BlockControls group="block">
@@ -408,12 +428,12 @@ function CoverEdit( {
 							contentPosition: nextPosition,
 						} )
 					}
-					isDisabled={ ! hasBackground }
+					isDisabled={ ! hasInnerBlocks }
 				/>
 				<FullHeightAlignmentControl
 					isActive={ isMinFullHeight }
 					onToggle={ toggleMinFullHeight }
-					isDisabled={ ! hasBackground }
+					isDisabled={ ! hasInnerBlocks }
 				/>
 			</BlockControls>
 			<BlockControls group="other">
@@ -539,7 +559,7 @@ function CoverEdit( {
 		}
 	);
 
-	if ( ! hasBackground ) {
+	if ( ! hasInnerBlocks && ! hasBackground ) {
 		return (
 			<>
 				{ controls }
@@ -574,7 +594,7 @@ function CoverEdit( {
 		{
 			'is-dark-theme': isDark,
 			'has-background-dim': dimRatio !== 0,
-			'is-transient': isBlogUrl,
+			'is-transient': isUploadingMedia,
 			'has-parallax': hasParallax,
 			'is-repeated': isRepeated,
 			[ overlayColor.class ]: overlayColor.class,
@@ -644,9 +664,9 @@ function CoverEdit( {
 						style={ mediaStyle }
 					/>
 				) }
-				{ isBlogUrl && <Spinner /> }
+				{ isUploadingMedia && <Spinner /> }
 				<CoverPlaceholder
-					hasBackground={ hasBackground }
+					disableMediaButtons
 					noticeUI={ noticeUI }
 					onSelectMedia={ onSelectMedia }
 					noticeOperations={ noticeOperations }

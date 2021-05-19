@@ -9,6 +9,12 @@ import {
 } from '@wordpress/element';
 import { __ } from '@wordpress/i18n';
 import { useMergeRefs } from '@wordpress/compose';
+import { __experimentalStyleProvider as StyleProvider } from '@wordpress/components';
+
+/**
+ * Internal dependencies
+ */
+import { useBlockSelectionClearer } from '../block-selection-clearer';
 
 const BODY_CLASS_NAME = 'editor-styles-wrapper';
 const BLOCK_PREFIX = 'wp-block';
@@ -135,6 +141,7 @@ function setHead( doc, head ) {
 function Iframe( { contentRef, children, head, headHTML, ...props }, ref ) {
 	const [ iframeDocument, setIframeDocument ] = useState();
 
+	const clearerRef = useBlockSelectionClearer();
 	const setRef = useCallback( ( node ) => {
 		if ( ! node ) {
 			return;
@@ -142,7 +149,7 @@ function Iframe( { contentRef, children, head, headHTML, ...props }, ref ) {
 
 		function setDocumentIfReady() {
 			const { contentDocument } = node;
-			const { readyState, body } = contentDocument;
+			const { readyState, body, documentElement } = contentDocument;
 
 			if ( readyState !== 'interactive' && readyState !== 'complete' ) {
 				return false;
@@ -160,6 +167,8 @@ function Iframe( { contentRef, children, head, headHTML, ...props }, ref ) {
 			bubbleEvents( contentDocument );
 			setBodyClassName( contentDocument );
 			setIframeDocument( contentDocument );
+			clearerRef( documentElement );
+			clearerRef( body );
 
 			return true;
 		}
@@ -182,7 +191,13 @@ function Iframe( { contentRef, children, head, headHTML, ...props }, ref ) {
 			title={ __( 'Editor canvas' ) }
 			name="editor-canvas"
 		>
-			{ iframeDocument && createPortal( children, iframeDocument.body ) }
+			{ iframeDocument &&
+				createPortal(
+					<StyleProvider document={ iframeDocument }>
+						{ children }
+					</StyleProvider>,
+					iframeDocument.body
+				) }
 			{ iframeDocument && createPortal( head, iframeDocument.head ) }
 		</iframe>
 	);
