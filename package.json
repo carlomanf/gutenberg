@@ -1,6 +1,10 @@
 {
 	"name": "gutenberg",
+<<<<<<< HEAD
 	"version": "10.6.0",
+=======
+	"version": "10.6.1",
+>>>>>>> trunk
 	"private": true,
 	"description": "A new WordPress editor experience.",
 	"author": "The WordPress Contributors",

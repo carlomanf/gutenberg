@@ -53,6 +53,7 @@ function gutenberg_render_layout_support_flag( $block_content, $block ) {
 	$content_size = isset( $used_layout['contentSize'] ) ? $used_layout['contentSize'] : null;
 	$wide_size    = isset( $used_layout['wideSize'] ) ? $used_layout['wideSize'] : null;
 
+<<<<<<< HEAD
 	$all_max_width_value       = $content_size ? $content_size : $wide_size;
 	$all_max_width_declaration = "max-width: $all_max_width_value";
 
@@ -79,20 +80,31 @@ function gutenberg_render_layout_support_flag( $block_content, $block ) {
 		<?php
 		$style = ob_get_clean();
 	}
+=======
+	$all_max_width_value  = $content_size ? $content_size : $wide_size;
+	$wide_max_width_value = $wide_size ? $wide_size : $content_size;
 
-	ob_start();
-	?>
-		<?php echo '.wp-container-' . $id; ?> .alignleft {
-			float: left;
-			margin-right: 2em;
-		}
+	// Make sure there is a single CSS rule, and all tags are stripped for security.
+	// TODO: Use `safecss_filter_attr` instead - once https://core.trac.wordpress.org/ticket/46197 is patched.
+	$all_max_width_value  = wp_strip_all_tags( explode( ';', $all_max_width_value )[0] );
+	$wide_max_width_value = wp_strip_all_tags( explode( ';', $wide_max_width_value )[0] );
 
-		<?php echo '.wp-container-' . $id; ?> .alignright {
-			float: right;
-			margin-left: 2em;
-		}
-	<?php
-	$style .= ob_get_clean();
+	$style = '';
+	if ( $content_size || $wide_size ) {
+		$style  = ".wp-container-$id > * {";
+		$style .= 'max-width: ' . esc_html( $all_max_width_value ) . ';';
+		$style .= 'margin-left: auto !important;';
+		$style .= 'margin-right: auto !important;';
+		$style .= '}';
+>>>>>>> trunk
+
+		$style .= ".wp-container-$id > .alignwide { max-width: " . esc_html( $wide_max_width_value ) . ';}';
+
+		$style .= ".wp-container-$id .alignfull { max-width: none; }";
+	}
+
+	$style .= ".wp-container-$id .alignleft { float: left; margin-right: 2em; }";
+	$style .= ".wp-container-$id .alignright { float: right; margin-left: 2em; }";
 
 	// This assumes the hook only applies to blocks with a single wrapper.
 	// I think this is a reasonable limitation for that particular hook.
