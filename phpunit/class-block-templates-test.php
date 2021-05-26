@@ -14,7 +14,6 @@ class Block_Templates_Test extends WP_UnitTestCase {
 	private static $template_part_post;
 
 	public static function wpSetUpBeforeClass() {
-		switch_theme( 'tt1-blocks' );
 		gutenberg_register_template_post_type();
 		gutenberg_register_template_part_post_type();
 		gutenberg_register_wp_theme_taxonomy();
@@ -37,6 +36,8 @@ class Block_Templates_Test extends WP_UnitTestCase {
 		);
 		self::$post = self::factory()->post->create_and_get( $args );
 		wp_set_post_terms( self::$post->ID, 'this-theme-should-not-resolve', 'wp_theme' );
+
+		switch_theme( 'tt1-blocks' );
 
 		// Set up template post.
 		$args       = array(
