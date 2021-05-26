@@ -24,14 +24,14 @@ function render_block_core_template_part( $attributes ) {
 		isset( $attributes['theme'] ) &&
 		wp_get_theme()->get_stylesheet() === $attributes['theme']
 	) {
-		$template_part_id    = $attributes['theme'] . '//' . $attributes['slug'];
-		$ids = get_theme_mod( 'wp_template_part', array() );
+		$template_part_id = $attributes['theme'] . '//' . $attributes['slug'];
+		$ids              = get_theme_mod( 'wp_template_part', array() );
 
 		if ( ! empty( $ids[ $attributes['slug'] ] ) ) {
 			$template_part_post = get_post( $ids[ $attributes['slug'] ] );
 		}
 
-		if ( $template_part_post && 'wp_template_part' == $template_part_post->post_type && 'publish' == $template_part_post->post_status ) {
+		if ( $template_part_post && 'wp_template_part' === $template_part_post->post_type && 'publish' === $template_part_post->post_status ) {
 			// A published post might already exist if this template part was customized elsewhere
 			// or if it's part of a customized template.
 			$content    = $template_part_post->post_content;
@@ -44,7 +44,7 @@ function render_block_core_template_part( $attributes ) {
 			// render the corresponding file content.
 			$template_part_file_path = get_stylesheet_directory() . '/block-template-parts/' . $attributes['slug'] . '.html';
 			if ( 0 === validate_file( $attributes['slug'] ) && file_exists( $template_part_file_path ) ) {
-				$content = _inject_theme_attribute_in_content( file_get_contents( $template_part_file_path ) );
+				$content = _gutenberg_inject_theme_attribute_in_content( file_get_contents( $template_part_file_path ) );
 			}
 		}
 	}

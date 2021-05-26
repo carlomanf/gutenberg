@@ -124,8 +124,8 @@ function _gutenberg_get_template_files( $template_type ) {
  * @return array Template.
  */
 function _gutenberg_add_template_part_area_info( $template_info ) {
-	if ( WP_Theme_JSON_Resolver::theme_has_support() ) {
-		$theme_data = WP_Theme_JSON_Resolver::get_theme_data()->get_template_parts();
+	if ( WP_Theme_JSON_Resolver_Gutenberg::theme_has_support() ) {
+		$theme_data = WP_Theme_JSON_Resolver_Gutenberg::get_theme_data()->get_template_parts();
 	}
 
 	if ( isset( $theme_data[ $template_info['slug'] ]['area'] ) ) {
@@ -145,7 +145,7 @@ function _gutenberg_add_template_part_area_info( $template_info ) {
  *
  * @return array block references to the passed blocks and their inner blocks.
  */
-function _flatten_blocks( &$blocks ) {
+function _gutenberg_flatten_blocks( &$blocks ) {
 	$all_blocks = array();
 	$queue      = array();
 	foreach ( $blocks as &$block ) {
@@ -175,12 +175,12 @@ function _flatten_blocks( &$blocks ) {
  *
  * @return string Updated wp_template content.
  */
-function _inject_theme_attribute_in_content( $template_content ) {
+function _gutenberg_inject_theme_attribute_in_content( $template_content ) {
 	$has_updated_content = false;
 	$new_content         = '';
 	$template_blocks     = parse_blocks( $template_content );
 
-	$blocks = _flatten_blocks( $template_blocks );
+	$blocks = _gutenberg_flatten_blocks( $template_blocks );
 	foreach ( $blocks as &$block ) {
 		if (
 			'core/template-part' === $block['blockName'] &&
@@ -218,7 +218,7 @@ function _gutenberg_build_template_result_from_file( $template_file, $template_t
 	$template                 = new WP_Block_Template();
 	$template->id             = $theme . '//' . $template_file['slug'];
 	$template->theme          = $theme;
-	$template->content        = _inject_theme_attribute_in_content( $template_content );
+	$template->content        = _gutenberg_inject_theme_attribute_in_content( $template_content );
 	$template->slug           = $template_file['slug'];
 	$template->source         = 'theme';
 	$template->type           = $template_type;
@@ -251,11 +251,11 @@ function _gutenberg_build_template_result_from_post( $post, $template_type = 'wp
 		return new WP_Error( 'template_wrong_post_type', __( 'An invalid post was provided for this template.', 'gutenberg' ) );
 	}
 
-	$ids = get_theme_mod( $template_type, array() );
+	$ids    = get_theme_mod( $template_type, array() );
 	$active = in_array( $post->ID, $ids, true );
 
-	$theme = $active ? wp_get_theme()->get_stylesheet() : '';
-	$slug = $active ? array_search( $post->ID, $ids, true ) : '';
+	$theme          = $active ? wp_get_theme()->get_stylesheet() : '';
+	$slug           = $active ? array_search( $post->ID, $ids, true ) : '';
 	$has_theme_file = $active &&
 		null !== _gutenberg_get_template_file( $post->post_type, $slug );
 
@@ -285,7 +285,7 @@ function _gutenberg_build_template_result_from_post( $post, $template_type = 'wp
 /**
  * Retrieves a list of unified template objects based on a query.
  *
- * @param array $query {
+ * @param array  $query {
  *     Optional. Arguments to retrieve templates.
  *
  *     @type array  $slug__in List of slugs to include.
@@ -298,7 +298,7 @@ function _gutenberg_build_template_result_from_post( $post, $template_type = 'wp
  */
 function gutenberg_get_block_templates( $query = array(), $template_type = 'wp_template', $active = true ) {
 	$theme_slugs = get_theme_mod( $template_type, array() );
-	$post__in = $active ? 'post__in' : 'post__not_in';
+	$post__in    = $active ? 'post__in' : 'post__not_in';
 
 	$wp_query_args = array(
 		'post_status'    => array( 'auto-draft', 'draft', 'publish' ),
@@ -336,8 +336,8 @@ function gutenberg_get_block_templates( $query = array(), $template_type = 'wp_t
 
 	$query_result = array();
 
-	// https://core.trac.wordpress.org/ticket/28099
-	if ( ! isset( $wp_query_args['post__in'] ) || $wp_query_args['post__in'] !== array() ) {
+	// See https://core.trac.wordpress.org/ticket/28099 for context.
+	if ( ! isset( $wp_query_args['post__in'] ) || array() !== $wp_query_args['post__in'] ) {
 		$template_query = new WP_Query( $wp_query_args );
 		foreach ( $template_query->get_posts() as $post ) {
 			$template = _gutenberg_build_template_result_from_post( $post, $template_type );
@@ -389,11 +389,11 @@ function gutenberg_get_block_template( $id, $template_type = 'wp_template' ) {
 
 	if ( $active ) {
 		$ids = get_theme_mod( $template_type, array() );
-		
+
 		if ( ! empty( $ids[ $slug ] ) ) {
 			$post = get_post( $ids[ $slug ] );
 		}
-	} else if ( '' === $theme ) {
+	} elseif ( '' === $theme ) {
 		// This is not actually a slug but a numeric ID.
 		$post = get_post( $slug );
 	} else {
