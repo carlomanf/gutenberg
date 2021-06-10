@@ -14,45 +14,33 @@ class Block_Templates_Test extends WP_UnitTestCase {
 	private static $template_part_post;
 
 	public static function wpSetUpBeforeClass() {
-		switch_theme( 'tt1-blocks' );
 		gutenberg_register_template_post_type();
 		gutenberg_register_template_part_post_type();
-		gutenberg_register_wp_theme_taxonomy();
 		gutenberg_register_wp_template_part_area_taxonomy();
 
 		// Set up a template post corresponding to a different theme.
 		// We do this to ensure resolution and slug creation works as expected,
 		// even with another post of that same name present for another theme.
+		switch_theme( 'test-theme' );
 		$args       = array(
 			'post_type'    => 'wp_template',
 			'post_name'    => 'my_template',
 			'post_title'   => 'My Template',
 			'post_content' => 'Content',
 			'post_excerpt' => 'Description of my template',
-			'tax_input'    => array(
-				'wp_theme' => array(
-					'this-theme-should-not-resolve',
-				),
-			),
 		);
 		self::$post = self::factory()->post->create_and_get( $args );
-		wp_set_post_terms( self::$post->ID, 'this-theme-should-not-resolve', 'wp_theme' );
 
 		// Set up template post.
+		switch_theme( 'tt1-blocks' );
 		$args       = array(
 			'post_type'    => 'wp_template',
 			'post_name'    => 'my_template',
 			'post_title'   => 'My Template',
 			'post_content' => 'Content',
 			'post_excerpt' => 'Description of my template',
-			'tax_input'    => array(
-				'wp_theme' => array(
-					get_stylesheet(),
-				),
-			),
 		);
 		self::$post = self::factory()->post->create_and_get( $args );
-		wp_set_post_terms( self::$post->ID, get_stylesheet(), 'wp_theme' );
 
 		// Set up template part post.
 		$template_part_args       = array(
@@ -62,9 +50,6 @@ class Block_Templates_Test extends WP_UnitTestCase {
 			'post_content' => 'Content',
 			'post_excerpt' => 'Description of my template part',
 			'tax_input'    => array(
-				'wp_theme'              => array(
-					get_stylesheet(),
-				),
 				'wp_template_part_area' => array(
 					WP_TEMPLATE_PART_AREA_HEADER,
 				),
@@ -72,7 +57,6 @@ class Block_Templates_Test extends WP_UnitTestCase {
 		);
 		self::$template_part_post = self::factory()->post->create_and_get( $template_part_args );
 		wp_set_post_terms( self::$template_part_post->ID, WP_TEMPLATE_PART_AREA_HEADER, 'wp_template_part_area' );
-		wp_set_post_terms( self::$template_part_post->ID, get_stylesheet(), 'wp_theme' );
 	}
 
 	public static function wpTearDownAfterClass() {
@@ -150,10 +134,10 @@ class Block_Templates_Test extends WP_UnitTestCase {
 		$this->assertEquals( WP_TEMPLATE_PART_AREA_HEADER, $template_part->area );
 	}
 
-	function test_inject_theme_attribute_in_content() {
+	function test_gutenberg_inject_theme_attribute_in_content() {
 		$theme                           = get_stylesheet();
 		$content_without_theme_attribute = '<!-- wp:template-part {"slug":"header","align":"full", "tagName":"header","className":"site-header"} /-->';
-		$template_content                = _inject_theme_attribute_in_content(
+		$template_content                = _gutenberg_inject_theme_attribute_in_content(
 			$content_without_theme_attribute,
 			$theme
 		);
@@ -164,7 +148,7 @@ class Block_Templates_Test extends WP_UnitTestCase {
 		$this->assertEquals( $expected, $template_content );
 
 		$content_without_theme_attribute_nested = '<!-- wp:group --><!-- wp:template-part {"slug":"header","align":"full", "tagName":"header","className":"site-header"} /--><!-- /wp:group -->';
-		$template_content                       = _inject_theme_attribute_in_content(
+		$template_content                       = _gutenberg_inject_theme_attribute_in_content(
 			$content_without_theme_attribute_nested,
 			$theme
 		);
@@ -176,7 +160,7 @@ class Block_Templates_Test extends WP_UnitTestCase {
 
 		// Does not inject theme when there is an existing theme attribute.
 		$content_with_existing_theme_attribute = '<!-- wp:template-part {"slug":"header","theme":"fake-theme","align":"full", "tagName":"header","className":"site-header"} /-->';
-		$template_content                      = _inject_theme_attribute_in_content(
+		$template_content                      = _gutenberg_inject_theme_attribute_in_content(
 			$content_with_existing_theme_attribute,
 			$theme
 		);
@@ -184,7 +168,7 @@ class Block_Templates_Test extends WP_UnitTestCase {
 
 		// Does not inject theme when there is no template part.
 		$content_with_no_template_part = '<!-- wp:post-content /-->';
-		$template_content              = _inject_theme_attribute_in_content(
+		$template_content              = _gutenberg_inject_theme_attribute_in_content(
 			$content_with_no_template_part,
 			$theme
 		);
@@ -287,22 +271,22 @@ class Block_Templates_Test extends WP_UnitTestCase {
 	/**
 	 * Should flatten nested blocks
 	 */
-	function test_flatten_blocks() {
+	function test_gutenberg_flatten_blocks() {
 		$content_template_part_inside_group = '<!-- wp:group --><!-- wp:template-part {"slug":"header"} /--><!-- /wp:group -->';
 		$blocks                             = parse_blocks( $content_template_part_inside_group );
-		$actual                             = _flatten_blocks( $blocks );
+		$actual                             = _gutenberg_flatten_blocks( $blocks );
 		$expected                           = array( $blocks[0], $blocks[0]['innerBlocks'][0] );
 		$this->assertEquals( $expected, $actual );
 
 		$content_template_part_inside_group_inside_group = '<!-- wp:group --><!-- wp:group --><!-- wp:template-part {"slug":"header"} /--><!-- /wp:group --><!-- /wp:group -->';
 		$blocks   = parse_blocks( $content_template_part_inside_group_inside_group );
-		$actual   = _flatten_blocks( $blocks );
+		$actual   = _gutenberg_flatten_blocks( $blocks );
 		$expected = array( $blocks[0], $blocks[0]['innerBlocks'][0], $blocks[0]['innerBlocks'][0]['innerBlocks'][0] );
 		$this->assertEquals( $expected, $actual );
 
 		$content_without_inner_blocks = '<!-- wp:group /-->';
 		$blocks                       = parse_blocks( $content_without_inner_blocks );
-		$actual                       = _flatten_blocks( $blocks );
+		$actual                       = _gutenberg_flatten_blocks( $blocks );
 		$expected                     = array( $blocks[0] );
 		$this->assertEquals( $expected, $actual );
 	}

@@ -6,25 +6,6 @@
  */
 
 /**
- * Returns all block template file path of the current theme and its parent theme.
- * Includes demo block template files if demo experiment is enabled.
- *
- * @return array $block_template_files A list of paths to all template files.
- */
-function gutenberg_get_template_paths() {
-	$block_template_files = glob( get_stylesheet_directory() . '/block-templates/*.html' );
-	$block_template_files = is_array( $block_template_files ) ? $block_template_files : array();
-
-	if ( is_child_theme() ) {
-		$child_block_template_files = glob( get_template_directory() . '/block-templates/*.html' );
-		$child_block_template_files = is_array( $child_block_template_files ) ? $child_block_template_files : array();
-		$block_template_files       = array_merge( $block_template_files, $child_block_template_files );
-	}
-
-	return $block_template_files;
-}
-
-/**
  * Registers block editor 'wp_template' post type.
  */
 function gutenberg_register_template_post_type() {
@@ -64,7 +45,7 @@ function gutenberg_register_template_post_type() {
 		'show_in_admin_bar'     => false,
 		'show_in_rest'          => true,
 		'rest_base'             => 'templates',
-		'rest_controller_class' => 'WP_REST_Templates_Controller',
+		'rest_controller_class' => 'Gutenberg_REST_Templates_Controller',
 		'capability_type'       => array( 'template', 'templates' ),
 		'map_meta_cap'          => true,
 		'supports'              => array(
@@ -84,13 +65,13 @@ add_action( 'init', 'gutenberg_register_template_post_type' );
  * Registers block editor 'wp_theme' taxonomy.
  */
 function gutenberg_register_wp_theme_taxonomy() {
-	if ( ! gutenberg_supports_block_templates() && ! WP_Theme_JSON_Resolver::theme_has_support() ) {
+	if ( ! gutenberg_supports_block_templates() && ! WP_Theme_JSON_Resolver_Gutenberg::theme_has_support() ) {
 		return;
 	}
 
 	register_taxonomy(
 		'wp_theme',
-		array( 'wp_template', 'wp_template_part', 'wp_global_styles' ),
+		array( 'wp_global_styles' ),
 		array(
 			'public'            => false,
 			'hierarchical'      => false,
@@ -165,33 +146,54 @@ add_action( 'manage_wp_template_posts_custom_column', 'gutenberg_render_template
 add_filter( 'views_edit-wp_template', 'gutenberg_filter_templates_edit_views' );
 
 /**
- * Sets a custom slug when creating auto-draft templates.
- * This is only needed for auto-drafts created by the regular WP editor.
- * If this page is to be removed, this won't be necessary.
+ * Finds whether a template or template part slug is customized for the currently active theme.
  *
- * @param int $post_id Post ID.
+ * @param string $slug          Template or template part slug.
+ * @param string $template_type wp_template or wp_template_part.
+ *
+ * @return bool Whether the template is customized for the currently active theme.
  */
-function set_unique_slug_on_create_template( $post_id ) {
-	$post = get_post( $post_id );
-	if ( 'auto-draft' !== $post->post_status ) {
-		return;
+function template_is_customized( $slug, $template_type = 'wp_template' ) {
+	$templates = get_theme_mod( $template_type, array() );
+
+	if ( ! isset( $templates[ $slug ] ) ) {
+		return false;
 	}
 
-	if ( ! $post->post_name ) {
-		wp_update_post(
-			array(
-				'ID'        => $post_id,
-				'post_name' => 'custom_slug_' . uniqid(),
-			)
-		);
-	}
-
-	$terms = get_the_terms( $post_id, 'wp_theme' );
-	if ( ! $terms || ! count( $terms ) ) {
-		wp_set_post_terms( $post_id, wp_get_theme()->get_stylesheet(), 'wp_theme' );
+	$customized = get_post( $templates[ $slug ] );
+	if ( $customized && $customized->post_type === $template_type ) {
+		return true;
+	} else {
+		return false;
 	}
 }
-add_action( 'save_post_wp_template', 'set_unique_slug_on_create_template' );
+	
+/**
+ * Sets a custom slug when creating new templates and template parts.
+ *
+ * @param int     $post_id Post ID.
+ * @param WP_Post $post    Post object.
+ * @param bool    $update  Update post or new post.
+ */
+function set_unique_slug_on_create_template( $post_id, $post, $update ) {
+	if ( ! $update && $post->post_name ) {
+		$templates = get_theme_mod( $post->post_type, array() );
+		$slug      = $post->post_name;
+
+		if ( template_is_customized( $slug, $post->post_type ) ) {
+			$suffix = 2;
+			do {
+				$slug = _truncate_post_slug( $post->post_name, 200 - ( strlen( $suffix ) + 1 ) ) . "-$suffix";
+				$suffix++;
+			} while ( template_is_customized( $slug, $post->post_type ) );
+		}
+
+		$templates[ $slug ] = $post->ID;
+		set_theme_mod( $post->post_type, $templates );
+	}
+}
+add_action( 'save_post_wp_template', 'set_unique_slug_on_create_template', 10, 3 );
+add_action( 'save_post_wp_template_part', 'set_unique_slug_on_create_template', 10, 3 );
 
 /**
  * Print the skip-link script & styles.

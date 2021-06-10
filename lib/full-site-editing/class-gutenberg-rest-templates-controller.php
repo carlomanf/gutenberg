@@ -1,6 +1,6 @@
 <?php
 /**
- * REST API: WP_REST_Templates_Controller class
+ * REST API: Gutenberg_REST_Templates_Controller class
  *
  * @package    Gutenberg
  * @subpackage REST_API
@@ -9,7 +9,7 @@
 /**
  * Base Templates REST API Controller.
  */
-class WP_REST_Templates_Controller extends WP_REST_Controller {
+class Gutenberg_REST_Templates_Controller extends WP_REST_Controller {
 	/**
 	 * Post type.
 	 *
@@ -335,24 +335,17 @@ class WP_REST_Templates_Controller extends WP_REST_Controller {
 	 * @return stdClass Changes to pass to wp_update_post.
 	 */
 	protected function prepare_item_for_database( $request ) {
-		$template           = $request['id'] ? gutenberg_get_block_template( $request['id'], $this->post_type ) : null;
-		$changes            = new stdClass();
-		$changes->post_name = $template->slug;
-		if ( null === $template ) {
+		$template = $request['id'] ? gutenberg_get_block_template( $request['id'], $this->post_type ) : null;
+		$changes  = new stdClass();
+		if ( null === $template || 'custom' !== $template->source ) {
 			$changes->post_type   = $this->post_type;
 			$changes->post_status = 'publish';
-			$changes->tax_input   = array(
-				'wp_theme' => isset( $request['theme'] ) ? $request['content'] : wp_get_theme()->get_stylesheet(),
-			);
-		} elseif ( 'custom' !== $template->source ) {
-			$changes->post_type   = $this->post_type;
-			$changes->post_status = 'publish';
-			$changes->tax_input   = array(
-				'wp_theme' => $template->theme,
-			);
 		} else {
 			$changes->ID          = $template->wp_id;
 			$changes->post_status = 'publish';
+		}
+		if ( null !== $template && 'custom' !== $template->source ) {
+			$changes->post_name = $template->slug;
 		}
 		if ( isset( $request['content'] ) ) {
 			$changes->post_content = $request['content'];
